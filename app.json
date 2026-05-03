@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "Nudgrr",
+    "slug": "nudgrr",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "nudgrr",
+    "userInterfaceStyle": "light",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#EBDDC8",
+      "imageWidth": 360
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.noorlyfe.nudgrr"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#EBDDC8"
+      },
+      "package": "com.noorlyfe.nudgrr"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-sharing",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#EBDDC8",
+          "image": "./assets/splash.png",
+          "imageWidth": 360,
+          "resizeMode": "contain"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
