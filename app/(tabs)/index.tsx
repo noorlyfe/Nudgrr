@@ -19,7 +19,7 @@ import { StatusBar } from "expo-status-bar";
 import * as Haptics from "expo-haptics";
 import * as Sharing from "expo-sharing";
 import { shareReceiptImage } from "../../lib/shareReceiptImage";
-import { useFocusEffect, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { FadeInDown, FadeOutDown } from "react-native-reanimated";
 import ViewShot, { captureRef } from "react-native-view-shot";
@@ -74,6 +74,14 @@ export default function Index() {
 
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { personName, linkedPerson } = useLocalSearchParams<{
+    personName?: string | string[];
+    linkedPerson?: string | string[];
+  }>();
+  const linkedPersonName = useMemo(() => {
+    const raw = Array.isArray(linkedPerson) ? linkedPerson[0] : linkedPerson;
+    return typeof raw === "string" ? raw.trim() : "";
+  }, [linkedPerson]);
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const { isPro } = useProStatus();
   const { canSendFree, recordSend, usedThisMonth } = useNudgeQuota(isPro);
@@ -118,7 +126,11 @@ export default function Index() {
   useFocusEffect(
     useCallback(() => {
       void reload();
-    }, [reload])
+      const rawName = Array.isArray(personName) ? personName[0] : personName;
+      if (typeof rawName === "string" && rawName.trim()) {
+        setRestaurant(rawName.trim());
+      }
+    }, [personName, reload])
   );
 
   const billAmount = useMemo(() => {
@@ -339,6 +351,7 @@ export default function Index() {
           nudgeTone,
           receiptFooterResolved,
           nudgePreviewText,
+          linkedPersonName: linkedPersonName || undefined,
         });
       } catch {
         // History is best-effort; still share the receipt.
@@ -393,6 +406,7 @@ export default function Index() {
     countNudgeWhenShareSheetPresented,
     receiptFooterText,
     isPro,
+    linkedPersonName,
     nudgeTone,
     nudgePreviewText,
     receiptOuterWidth,

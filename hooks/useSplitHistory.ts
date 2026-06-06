@@ -35,6 +35,8 @@ export type SplitRecord = {
   paidAt?: string;
   /** ISO 8601 when the reminder / receipt was effectively “sent”; falls back to `createdAt` in UI when missing. */
   nudgeSentAt?: string;
+  /** Links this waiting entry to a person in the People tab. */
+  linkedPersonName?: string;
 };
 
 async function readAll(): Promise<SplitRecord[]> {
@@ -89,6 +91,7 @@ export function useSplitHistory() {
       nudgeTone: NudgeTone;
       receiptFooterResolved: string;
       nudgePreviewText: string;
+      linkedPersonName?: string;
     }) => {
       const now = new Date().toISOString();
       const next: SplitRecord = {
@@ -107,6 +110,7 @@ export function useSplitHistory() {
         receiptFooterResolved: record.receiptFooterResolved,
         nudgePreviewText: record.nudgePreviewText,
         nudgeSentAt: now,
+        linkedPersonName: record.linkedPersonName?.trim() || undefined,
       };
       const all = await readAll();
       const merged = [next, ...all].slice(0, 200);

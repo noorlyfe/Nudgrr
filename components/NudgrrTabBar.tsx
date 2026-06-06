@@ -9,10 +9,10 @@ import { useColors } from "../hooks/useColors";
 import { useTheme } from "../hooks/useTheme";
 import { rtlRow } from "../lib/rtl";
 
-const TAB_META: Record<string, { labelKey: "split" | "waiting" | "theLack" | "theProject"; icon: string }> = {
+const TAB_META: Record<string, { labelKey: "split" | "waiting" | "peopleTab" | "theProject"; icon: string }> = {
   index: { labelKey: "split", icon: "÷" },
   waiting: { labelKey: "waiting", icon: "⏳" },
-  "the-lack": { labelKey: "theLack", icon: "💸" },
+  people: { labelKey: "peopleTab", icon: "👥" },
   projects: { labelKey: "theProject", icon: "📋" },
 };
 

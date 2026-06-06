@@ -62,6 +62,7 @@ function AppShell({ fontsLoaded }: { fontsLoaded: boolean }) {
         }}
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="person" />
         <Stack.Screen name="history" />
         <Stack.Screen name="project" />
         <Stack.Screen name="settings" />
