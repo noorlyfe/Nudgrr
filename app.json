@@ -2,7 +2,7 @@
   "expo": {
     "name": "Nudgrr",
     "slug": "nudgrr",
-    "version": "1.0.5",
+    "version": "1.0.6",
     "orientation": "portrait",
     "scheme": "nudgrr",
     "userInterfaceStyle": "automatic",
@@ -40,7 +40,7 @@
         "backgroundColor": "#3D3935"
       },
       "package": "com.noorlyfe.nudgrr",
-      "versionCode": 6
+      "versionCode": 7
     },
     "plugins": [
       [
