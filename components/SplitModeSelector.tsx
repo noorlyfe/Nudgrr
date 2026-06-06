@@ -1,15 +1,16 @@
+import { useMemo } from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
 import { Pressable, ScrollView } from "react-native-gesture-handler";
-import { colors, radii, spacing, typography } from "../constants/theme";
+
+import { fonts, radii, spacing, type AppColors } from "../constants/theme";
+import { useLocale } from "../hooks/useLocale";
+import { useColors } from "../hooks/useColors";
+import { rtlRow } from "../lib/rtl";
+
+const PILL_HEIGHT = 32;
+const PILL_PAD_H = 10;
 
 export type SplitMode = "even" | "less" | "more" | "custom";
-
-const OPTIONS: Array<{ id: SplitMode; label: string }> = [
-  { id: "even", label: "Split evenly" },
-  { id: "less", label: "I ate less" },
-  { id: "more", label: "I ate more" },
-  { id: "custom", label: "Custom" },
-];
 
 type SplitModeSelectorProps = {
   mode: SplitMode;
@@ -24,11 +25,33 @@ export function SplitModeSelector({
   onModeChange,
   onCustomPercentChange,
 }: SplitModeSelectorProps) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
+  const { t, isRTL } = useLocale();
+
+  const options = useMemo(
+    () => [
+      { id: "even" as SplitMode, label: t("splitEvenly") },
+      { id: "less" as SplitMode, label: t("iAteLess") },
+      { id: "more" as SplitMode, label: t("iAteMore") },
+      { id: "custom" as SplitMode, label: t("custom") },
+    ],
+    [t]
+  );
+
   return (
     <View style={styles.wrap}>
-      <Text style={styles.label}>How to split</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
-        {OPTIONS.map((option) => {
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.scroll}
+        contentContainerStyle={[styles.row, rtlRow(isRTL)]}
+        keyboardShouldPersistTaps="handled"
+        nestedScrollEnabled
+      >
+        <Text style={styles.label}>{t("howToSplit")}</Text>
+        {options.map((option) => {
           const active = option.id === mode;
           return (
             <Pressable
@@ -39,15 +62,17 @@ export function SplitModeSelector({
               accessibilityState={{ selected: active }}
               accessibilityLabel={option.label}
             >
-              <Text style={[styles.pillText, active && styles.pillTextActive]}>{option.label}</Text>
+              <Text
+                style={[styles.pillText, active && styles.pillTextActive]}
+                numberOfLines={1}
+              >
+                {option.label}
+              </Text>
             </Pressable>
           );
         })}
-      </ScrollView>
-      {mode === "custom" ? (
-        <View style={styles.customRow}>
-          <Text style={styles.customHint}>My share of the even split:</Text>
-          <View style={styles.customField}>
+        {mode === "custom" ? (
+          <View style={[styles.inlineField, rtlRow(isRTL)]}>
             <Text style={styles.prefix}>%</Text>
             <TextInput
               value={customPercent}
@@ -56,79 +81,97 @@ export function SplitModeSelector({
               inputMode="decimal"
               placeholder="100"
               placeholderTextColor={colors.textSecondary}
+              selectionColor={colors.accent}
+              cursorColor={colors.accent}
               style={styles.input}
-              accessibilityLabel="Custom split percent"
+              accessibilityLabel={t("customSplitPercent")}
             />
           </View>
-        </View>
-      ) : null}
+        ) : null}
+      </ScrollView>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  wrap: {
-    gap: spacing.sm,
-  },
-  label: {
-    ...typography.label,
-    color: colors.textSecondary,
-  },
-  row: {
-    gap: spacing.sm,
-    paddingRight: spacing.lg,
-  },
-  pill: {
-    borderWidth: 1,
-    borderRadius: radii.pill,
-    paddingHorizontal: spacing.md,
-    minHeight: 42,
-    justifyContent: "center",
-  },
-  pillIdle: {
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  pillActive: {
-    borderColor: colors.accent,
-    backgroundColor: colors.pillActiveBg,
-  },
-  pillText: {
-    ...typography.badge,
-    color: colors.textSecondary,
-  },
-  pillTextActive: {
-    color: colors.pillActiveText,
-    fontFamily: "SpaceMono_700Bold",
-  },
-  customRow: {
-    marginTop: spacing.xs,
-    gap: spacing.xs,
-  },
-  customHint: {
-    ...typography.badge,
-    color: colors.textSecondary,
-  },
-  customField: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    backgroundColor: colors.surface,
-    minHeight: 44,
-    paddingHorizontal: spacing.md,
-  },
-  prefix: {
-    ...typography.body,
-    color: colors.textSecondary,
-    marginRight: 6,
-  },
-  input: {
-    ...typography.body,
-    color: colors.textPrimary,
-    fontSize: 18,
-    flex: 1,
-    paddingVertical: spacing.xs,
-  },
-});
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
+    wrap: {
+      minHeight: PILL_HEIGHT,
+      maxHeight: PILL_HEIGHT + 4,
+    },
+    scroll: {
+      maxHeight: PILL_HEIGHT,
+      flexGrow: 0,
+    },
+    row: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      paddingRight: spacing.md,
+      minHeight: PILL_HEIGHT,
+    },
+    label: {
+      fontFamily: fonts.bodySemiBold,
+      fontSize: 11,
+      letterSpacing: 0.2,
+      color: colors.textSecondary,
+      marginRight: 2,
+      paddingHorizontal: 2,
+    },
+    pill: {
+      height: PILL_HEIGHT,
+      minHeight: PILL_HEIGHT,
+      maxWidth: 120,
+      paddingHorizontal: PILL_PAD_H,
+      borderWidth: 1,
+      borderRadius: radii.pill,
+      justifyContent: "center",
+      overflow: "hidden",
+    },
+    pillIdle: {
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+    },
+    pillActive: {
+      borderColor: colors.accent,
+      backgroundColor: colors.pillActiveBg,
+    },
+    pillText: {
+      fontFamily: fonts.body,
+      fontSize: 12,
+      lineHeight: 14,
+      color: colors.textSecondary,
+    },
+    pillTextActive: {
+      color: colors.pillActiveText,
+      fontFamily: fonts.bodySemiBold,
+    },
+    inlineField: {
+      flexDirection: "row",
+      alignItems: "center",
+      height: PILL_HEIGHT,
+      minWidth: 72,
+      maxWidth: 96,
+      paddingHorizontal: PILL_PAD_H,
+      borderRadius: radii.pill,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+    },
+    prefix: {
+      fontFamily: fonts.body,
+      fontSize: 12,
+      color: colors.textSecondary,
+      marginRight: 4,
+    },
+    input: {
+      flex: 1,
+      minWidth: 40,
+      fontFamily: fonts.bodySemiBold,
+      fontSize: 12,
+      color: colors.textPrimary,
+      paddingVertical: 0,
+      height: PILL_HEIGHT,
+    },
+  });
+}

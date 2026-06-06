@@ -1,21 +1,25 @@
-import { useCallback, useMemo, useState } from "react";
-import { Alert, Platform, Share, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Platform, Share, StyleSheet, Text, View } from "react-native";
 import { Pressable } from "react-native-gesture-handler";
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 
+import { AppAlert } from "./AppAlert";
 import {
   FREE_NUDGES_PER_MONTH,
-  NUDGE_TEMPLATES,
-  NUDGE_TONE_OPTIONS,
+  NUDGE_TEMPLATES_LOCALIZED,
+  getLocalizedToneOptions,
   type NudgeTone,
   buildFullNudgeMessage,
-  fillNudgeTemplate,
 } from "../constants/messages";
-import { colors, radii, spacing, touchTarget, typography } from "../constants/theme";
+import { fonts, radii, spacing, touchTarget, typography, type AppColors } from "../constants/theme";
+import { useLocale } from "../hooks/useLocale";
+import { useColors } from "../hooks/useColors";
+import { useNudgeCycle } from "../hooks/useNudgeCycle";
 import { useNudgeQuota } from "../hooks/useNudgeQuota";
 import { trackEvent } from "../lib/analytics";
-import { formatUsd } from "../hooks/useTipCalculator";
+import { formatCurrency } from "../lib/currency";
+import { rtlRow } from "../lib/rtl";
 
 type NudgeSectionProps = {
   hasBill: boolean;
@@ -24,50 +28,9 @@ type NudgeSectionProps = {
   isPro: boolean;
   tone: NudgeTone;
   onToneChange: (t: NudgeTone) => void;
+  currencyCode: string;
+  onPreviewTextChange?: (text: string) => void;
 };
-
-type ToneCycleState = {
-  order: number[];
-  position: number;
-  lastIndex: number | null;
-};
-
-function shuffledIndices(length: number, avoidFirst: number | null = null): number[] {
-  const arr = Array.from({ length }, (_, i) => i);
-  for (let i = arr.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  if (avoidFirst !== null && arr.length > 1 && arr[0] === avoidFirst) {
-    [arr[0], arr[1]] = [arr[1], arr[0]];
-  }
-  return arr;
-}
-
-function createInitialCycles(): Record<NudgeTone, ToneCycleState> {
-  return {
-    funny: {
-      order: shuffledIndices(NUDGE_TEMPLATES.funny.length),
-      position: 0,
-      lastIndex: null,
-    },
-    casual: {
-      order: shuffledIndices(NUDGE_TEMPLATES.casual.length),
-      position: 0,
-      lastIndex: null,
-    },
-    passiveAggressive: {
-      order: shuffledIndices(NUDGE_TEMPLATES.passiveAggressive.length),
-      position: 0,
-      lastIndex: null,
-    },
-    serious: {
-      order: shuffledIndices(NUDGE_TEMPLATES.serious.length),
-      position: 0,
-      lastIndex: null,
-    },
-  };
-}
 
 export function NudgeSection({
   hasBill,
@@ -76,34 +39,39 @@ export function NudgeSection({
   isPro,
   tone,
   onToneChange,
+  currencyCode,
+  onPreviewTextChange,
 }: NudgeSectionProps) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const router = useRouter();
+  const { t, locale, isRTL } = useLocale();
   const { remainingFree, canSendFree, loading, recordSend } = useNudgeQuota(isPro);
-  /**
-   * Each tone has its own shuffled cycle:
-   * - Regenerate moves chronologically through the current shuffled order.
-   * - After a full round, a new shuffled order is created (no immediate repeat first item).
-   */
-  const [toneCycles, setToneCycles] = useState<Record<NudgeTone, ToneCycleState>>(
-    createInitialCycles
+  const localizedTemplates = useMemo(
+    () => NUDGE_TEMPLATES_LOCALIZED[locale] ?? NUDGE_TEMPLATES_LOCALIZED.en,
+    [locale]
+  );
+  const { advance, rawBody: formatRawBody } = useNudgeCycle(tone, localizedTemplates);
+  const toneOptions = useMemo(() => getLocalizedToneOptions(t), [t]);
+  const [showMonthlyLimitAlert, setShowMonthlyLimitAlert] = useState(false);
+  const [showWebPreviewNudgeAlert, setShowWebPreviewNudgeAlert] = useState(false);
+  const [shareFailedMessage, setShareFailedMessage] = useState<string | null>(null);
+
+  const amountFormatted = useMemo(
+    () => formatCurrency(totalPerPerson, currencyCode),
+    [currencyCode, locale, totalPerPerson]
   );
 
-  const amountFormatted = useMemo(() => formatUsd(totalPerPerson), [totalPerPerson]);
+  const rawBody = useMemo(
+    () => formatRawBody(amountFormatted),
+    [amountFormatted, formatRawBody]
+  );
 
-  const templateIndex = useMemo(() => {
-    const list = NUDGE_TEMPLATES[tone];
-    const cycle = toneCycles[tone];
-    if (!cycle || list.length === 0) {
-      return 0;
-    }
-    return cycle.order[cycle.position] ?? 0;
-  }, [tone, toneCycles]);
-
-  const rawBody = useMemo(() => {
-    const list = NUDGE_TEMPLATES[tone];
-    const t = list[templateIndex];
-    return fillNudgeTemplate(t, amountFormatted);
-  }, [amountFormatted, templateIndex, tone]);
+  // Nudge preview text — always synced for receipt capture; never gated by quota or Pro.
+  useEffect(() => {
+    onPreviewTextChange?.(rawBody);
+  }, [onPreviewTextChange, rawBody]);
 
   const fullMessage = useMemo(
     () => buildFullNudgeMessage(rawBody, !isPro),
@@ -112,56 +80,23 @@ export function NudgeSection({
 
   const contextLabel = restaurant.trim();
 
-  const advanceToneMessage = useCallback((targetTone: NudgeTone) => {
-    setToneCycles((prev) => {
-      const current = prev[targetTone];
-      const listLength = NUDGE_TEMPLATES[targetTone].length;
-      if (!current || listLength === 0) {
-        return prev;
-      }
-
-      const currentIndex = current.order[current.position] ?? 0;
-      const nextPosition = current.position + 1;
-
-      if (nextPosition < current.order.length) {
-        return {
-          ...prev,
-          [targetTone]: {
-            ...current,
-            position: nextPosition,
-            lastIndex: currentIndex,
-          },
-        };
-      }
-
-      return {
-        ...prev,
-        [targetTone]: {
-          order: shuffledIndices(listLength, currentIndex),
-          position: 0,
-          lastIndex: currentIndex,
-        },
-      };
-    });
-  }, []);
-
   const onPickTone = useCallback(
-    (t: NudgeTone) => {
+    (pickedTone: NudgeTone) => {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      if (t === tone) {
-        advanceToneMessage(t);
+      if (pickedTone === tone) {
+        advance(pickedTone);
         return;
       }
-      onToneChange(t);
+      onToneChange(pickedTone);
     },
-    [advanceToneMessage, onToneChange, tone]
+    [advance, onToneChange, tone]
   );
 
   const onRegenerate = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     void trackEvent("nudge_regenerate");
-    advanceToneMessage(tone);
-  }, [advanceToneMessage, tone]);
+    advance(tone);
+  }, [advance, tone]);
 
   const onSendNudge = useCallback(async () => {
     if (!hasBill) {
@@ -169,14 +104,7 @@ export function NudgeSection({
     }
     if (!isPro && !canSendFree) {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      Alert.alert(
-        "Monthly nudge limit",
-        `The free plan includes ${FREE_NUDGES_PER_MONTH} nudges per month. Unlimited is $4.99/month in the app.`,
-        [
-          { text: "Not now", style: "cancel" },
-          { text: "Get Unlimited", onPress: () => router.push("/paywall") },
-        ]
-      );
+      setShowMonthlyLimitAlert(true);
       return;
     }
 
@@ -188,17 +116,14 @@ export function NudgeSection({
             await recordSend();
           }
           void trackEvent("nudge_sent");
+          void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         } else {
-          Alert.alert(
-            "Web preview limitation",
-            "Text reminders are fully supported in the iOS/Android app. On desktop web, copy manually for now."
-          );
+          setShowWebPreviewNudgeAlert(true);
         }
-        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         return;
       }
 
-      const result = await Share.share({ message: fullMessage, title: "Your share" });
+      const result = await Share.share({ message: fullMessage, title: t("yourShare") });
       if (result.action === Share.sharedAction) {
         if (!isPro) {
           await recordSend();
@@ -208,10 +133,10 @@ export function NudgeSection({
       }
     } catch (e) {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      const msg = e instanceof Error ? e.message : "Could not open share sheet.";
-      Alert.alert("Share failed", msg);
+      const msg = e instanceof Error ? e.message : t("couldNotOpenShareSheet");
+      setShareFailedMessage(msg);
     }
-  }, [canSendFree, fullMessage, hasBill, isPro, recordSend, router]);
+  }, [canSendFree, fullMessage, hasBill, isPro, recordSend, router, t]);
 
   if (!hasBill) {
     return null;
@@ -219,18 +144,22 @@ export function NudgeSection({
 
   return (
     <View style={styles.wrap}>
-      <Text style={styles.sectionTitle}>Send a Nudge</Text>
-      <Text style={styles.sectionSub}>Your receipt uses this vibe too — go wild, then share.</Text>
+      <Text style={styles.sectionTitle}>{t("sendANudge")}</Text>
+      <Text style={styles.sectionSub}>{t("vibeSub")}</Text>
       {!isPro ? (
-        <Text style={styles.hint}>
-          {loading
-          ? "…"
-          : `${remainingFree} of ${FREE_NUDGES_PER_MONTH} free nudges left this month · “Sent via Nudgrr” on each message`}
-        </Text>
+        <View style={[styles.quotaBadge, remainingFree === 0 && styles.quotaBadgeEmpty]}>
+          <Text style={[styles.quotaText, remainingFree === 0 && styles.quotaTextEmpty]}>
+            {loading
+              ? "…"
+              : remainingFree === 0
+                ? t("noFreeNudges")
+                : t("freeNudgesLeft", { remaining: remainingFree, total: FREE_NUDGES_PER_MONTH })}
+          </Text>
+        </View>
       ) : null}
 
-      <View style={styles.toneGrid}>
-        {NUDGE_TONE_OPTIONS.map((opt) => {
+      <View style={[styles.toneGrid, rtlRow(isRTL)]}>
+        {toneOptions.map((opt) => {
           const active = tone === opt.id;
           return (
             <Pressable
@@ -243,7 +172,7 @@ export function NudgeSection({
               ]}
               accessibilityRole="button"
               accessibilityState={{ selected: active }}
-              accessibilityLabel={`${opt.label} tone`}
+              accessibilityLabel={t("toneA11y", { label: opt.label })}
             >
               <Text style={styles.toneEmoji}>{opt.emoji}</Text>
               <Text style={[styles.toneLabel, active && styles.toneLabelActive]}>{opt.label}</Text>
@@ -252,61 +181,116 @@ export function NudgeSection({
         })}
       </View>
 
+      {/* Preview message — always visible for free and Pro; not affected by monthly nudge limit */}
       <View style={styles.preview}>
-        <Text style={styles.previewLabel}>Preview</Text>
-        {contextLabel ? <Text style={styles.contextSmall}>From: {contextLabel}</Text> : null}
+        <Text style={styles.previewLabel}>{t("preview")}</Text>
+        {contextLabel ? (
+          <Text style={styles.contextSmall}>
+            {t("fromPrefix")}
+            {contextLabel}
+          </Text>
+        ) : null}
         <Text style={styles.previewText}>{rawBody}</Text>
       </View>
 
-      <View style={styles.secondaryRow}>
+      <View style={[styles.secondaryRow, rtlRow(isRTL)]}>
         <Pressable
           onPress={onRegenerate}
           style={({ pressed }) => [styles.secondaryBtn, pressed && styles.secondaryBtnPressed]}
           accessibilityRole="button"
-          accessibilityLabel="Regenerate message"
+          accessibilityLabel={t("regenerateMessage")}
         >
-          <Text style={styles.secondaryBtnText}>Regenerate</Text>
+          <Text style={styles.secondaryBtnText}>{t("regenerate")}</Text>
         </Pressable>
       </View>
 
       <Pressable
         onPress={() => void onSendNudge()}
-        style={({ pressed }) => [styles.sendBtn, pressed && styles.sendBtnPressed]}
+        disabled={!isPro && !canSendFree && !loading}
+        style={({ pressed }) => [
+          styles.sendBtn,
+          pressed && styles.sendBtnPressed,
+          !isPro && !canSendFree && !loading && styles.sendBtnDisabled,
+        ]}
         accessibilityRole="button"
-        accessibilityLabel="Send text reminder"
+        accessibilityLabel={t("sendTextReminder")}
       >
-        <Text style={styles.sendBtnText}>Send text reminder</Text>
+        <Text style={[styles.sendBtnText, !isPro && !canSendFree && !loading && styles.sendBtnTextDisabled]}>
+          {!isPro && !canSendFree && !loading ? t("noFreeNudges") : t("sendTextReminder")}
+        </Text>
       </Pressable>
+
+      <AppAlert
+        visible={showMonthlyLimitAlert}
+        title={t("monthlyNudgeLimit")}
+        message={t("monthlyNudgeLimitBody", { total: FREE_NUDGES_PER_MONTH })}
+        onRequestClose={() => setShowMonthlyLimitAlert(false)}
+        buttons={[
+          { text: t("notNow"), style: "cancel", onPress: () => setShowMonthlyLimitAlert(false) },
+          {
+            text: t("getUnlimited"),
+            onPress: () => {
+              setShowMonthlyLimitAlert(false);
+              router.push("/paywall");
+            },
+          },
+        ]}
+      />
+      <AppAlert
+        visible={showWebPreviewNudgeAlert}
+        title={t("webPreviewLimitation")}
+        message={t("webPreviewNudge")}
+        onRequestClose={() => setShowWebPreviewNudgeAlert(false)}
+        buttons={[{ text: t("ok"), onPress: () => setShowWebPreviewNudgeAlert(false) }]}
+      />
+      <AppAlert
+        visible={shareFailedMessage !== null}
+        title={t("shareFailed")}
+        message={shareFailedMessage ?? undefined}
+        onRequestClose={() => setShareFailedMessage(null)}
+        buttons={[{ text: t("ok"), onPress: () => setShareFailedMessage(null) }]}
+      />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   wrap: {
     gap: spacing.md,
     marginTop: spacing.sm,
     paddingTop: spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
   },
   sectionTitle: {
     ...typography.label,
-    fontSize: 13,
     color: colors.textSecondary,
-    letterSpacing: 1.4,
   },
   sectionSub: {
     ...typography.badge,
-    fontSize: 11,
     color: colors.textSecondary,
     opacity: 0.95,
-    lineHeight: 16,
     marginTop: -4,
   },
-  hint: {
+  quotaBadge: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  quotaBadgeEmpty: {
+    borderColor: colors.accent,
+    backgroundColor: colors.accentSoft,
+  },
+  quotaText: {
     ...typography.badge,
     color: colors.textSecondary,
-    lineHeight: 16,
+    textAlign: "center",
+  },
+  quotaTextEmpty: {
+    color: colors.accent,
+    fontFamily: fonts.bodyBold,
   },
   toneGrid: {
     flexDirection: "row",
@@ -322,7 +306,7 @@ const styles = StyleSheet.create({
     minHeight: touchTarget.min + 4,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
-    borderRadius: radii.md,
+    borderRadius: radii.lg,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
@@ -334,30 +318,29 @@ const styles = StyleSheet.create({
   },
   toneBtnActive: {
     borderColor: colors.accent,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.accentSoft,
   },
   toneBtnPressed: {
     opacity: 0.88,
   },
   toneEmoji: {
-    fontSize: 22,
+    ...typography.stepper,
   },
   toneLabel: {
-    ...typography.body,
-    fontSize: 13,
+    ...typography.badge,
     color: colors.textSecondary,
     textAlign: "center",
   },
   toneLabelActive: {
     color: colors.accent,
-    fontFamily: "SpaceMono_700Bold",
+    fontFamily: fonts.bodySemiBold,
   },
   preview: {
     padding: spacing.md,
-    borderRadius: radii.md,
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.background,
+    backgroundColor: colors.accentSoft,
     gap: spacing.xs,
   },
   previewLabel: {
@@ -366,14 +349,12 @@ const styles = StyleSheet.create({
   },
   contextSmall: {
     ...typography.badge,
-    fontSize: 11,
     color: colors.textSecondary,
     marginBottom: spacing.xs,
   },
   previewText: {
     ...typography.body,
-    fontSize: 14,
-    lineHeight: 20,
+    fontFamily: fonts.mono,
     color: colors.textPrimary,
   },
   secondaryRow: {
@@ -385,7 +366,7 @@ const styles = StyleSheet.create({
   secondaryBtn: {
     paddingVertical: 10,
     paddingHorizontal: spacing.md,
-    minHeight: 40,
+    minHeight: touchTarget.min,
     borderRadius: radii.md,
     borderWidth: 1,
     borderColor: colors.border,
@@ -397,28 +378,40 @@ const styles = StyleSheet.create({
   },
   secondaryBtnText: {
     ...typography.body,
-    fontSize: 13,
     color: colors.accent,
-    fontFamily: "SpaceMono_700Bold",
+    fontFamily: fonts.bodySemiBold,
   },
   sendBtn: {
-    minHeight: 40,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    minHeight: touchTarget.min,
+    borderRadius: radii.lg,
+    borderWidth: 0,
+    backgroundColor: colors.accent,
     alignItems: "center",
     justifyContent: "center",
     alignSelf: "flex-start",
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.lg,
     marginTop: -2,
+    shadowColor: colors.shadow,
+    shadowOpacity: colors.cardShadowOpacity,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
   },
   sendBtnPressed: {
     opacity: 0.88,
   },
-  sendBtnText: {
-    ...typography.body,
-    fontSize: 13,
-    color: colors.textSecondary,
+  sendBtnDisabled: {
+    opacity: 0.5,
+    borderColor: colors.border,
   },
-});
+  sendBtnText: {
+    ...typography.badge,
+    color: colors.pillActiveText,
+    fontFamily: fonts.bodySemiBold,
+  },
+  sendBtnTextDisabled: {
+    color: colors.textSecondary,
+    fontFamily: fonts.body,
+  },
+  });
+}

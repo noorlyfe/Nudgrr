@@ -1,12 +1,17 @@
+import { useMemo } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { colors, spacing, typography } from "../constants/theme";
+import { fonts, radii, spacing, touchTarget, typography, type AppColors } from "../constants/theme";
+import { useLocale } from "../hooks/useLocale";
+import { useColors } from "../hooks/useColors";
+import { useTheme } from "../hooks/useTheme";
+import { rtlRow } from "../lib/rtl";
 import { safeRouterBack } from "../lib/safeRouterBack";
 
-const BODY = `Last updated: April 23, 2026
+export const PRIVACY_POLICY_BODY = `Last updated: April 23, 2026
 
 Nudgrr ("we", "us") is operated by Noorlyfe. This Privacy Policy explains how the Nudgrr mobile app handles information when you use the app.
 
@@ -38,15 +43,20 @@ CHANGES
 We may update this policy from time to time. The "Last updated" date will change when we do.`;
 
 export default function PrivacyScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { t, isRTL } = useLocale();
+  const { isDark } = useTheme();
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
-      <StatusBar style="dark" />
-      <View style={styles.header}>
+      <StatusBar style={isDark ? "light" : "dark"} />
+      <View style={[styles.header, rtlRow(isRTL)]}>
         <Pressable onPress={() => safeRouterBack(router)} hitSlop={12} style={({ pressed }) => [styles.back, pressed && styles.pressed]}>
-          <Text style={styles.backText}>Back</Text>
+          <Text style={styles.backText}>{t("back")}</Text>
         </Pressable>
         <Text style={styles.title}>Privacy Policy</Text>
         <View style={styles.headerSpacer} />
@@ -59,32 +69,38 @@ export default function PrivacyScreen() {
         ]}
         showsVerticalScrollIndicator
       >
-        <Text style={styles.body}>{BODY}</Text>
+        <Text style={styles.body}>{PRIVACY_POLICY_BODY}</Text>
       </ScrollView>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: spacing.lg,
-    minHeight: 48,
+    minHeight: touchTarget.min,
   },
   back: { minWidth: 56, minHeight: 44, justifyContent: "center" },
-  backText: { ...typography.body, color: colors.accent, fontFamily: "SpaceMono_700Bold" },
-  title: { ...typography.body, fontFamily: "SpaceMono_700Bold", fontSize: 16, color: colors.textPrimary, flex: 1, textAlign: "center" },
+  backText: { ...typography.body, fontFamily: fonts.bodySemiBold, color: colors.accent },
+  title: {
+    ...typography.body,
+    fontFamily: fonts.bodyBold,
+    color: colors.textPrimary,
+    flex: 1,
+    textAlign: "center",
+  },
   headerSpacer: { minWidth: 56 },
   scroll: { flex: 1 },
   content: { paddingHorizontal: spacing.lg, paddingTop: spacing.md },
   body: {
     ...typography.badge,
-    fontSize: 12,
-    lineHeight: 18,
     color: colors.textPrimary,
   },
   pressed: { opacity: 0.86 },
-});
+  });
+}

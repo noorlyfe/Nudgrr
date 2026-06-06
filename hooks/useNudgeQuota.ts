@@ -5,6 +5,15 @@ import { FREE_NUDGES_PER_MONTH } from "../constants/messages";
 
 const STORAGE_KEY = "@nudgrr/nudge_quota_v2";
 
+/** Keeps every useNudgeQuota() caller in sync (e.g. Split index + NudgeSection). */
+const quotaListeners = new Set<() => void>();
+
+function emitQuotaChanged() {
+  for (const listener of quotaListeners) {
+    listener();
+  }
+}
+
 type QuotaPayload = {
   month: string;
   count: number;
@@ -56,9 +65,29 @@ export function useNudgeQuota(isPro: boolean) {
     }
   }, []);
 
+  const syncFromStorage = useCallback(async () => {
+    let p = await readPayload();
+    const month = currentMonthKey();
+    if (p.month !== month) {
+      p = { month, count: 0 };
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(p));
+    }
+    setUsedThisMonth(p.count);
+  }, []);
+
   useEffect(() => {
     void reload();
   }, [reload]);
+
+  useEffect(() => {
+    const onQuotaChanged = () => {
+      void syncFromStorage();
+    };
+    quotaListeners.add(onQuotaChanged);
+    return () => {
+      quotaListeners.delete(onQuotaChanged);
+    };
+  }, [syncFromStorage]);
 
   const remainingFree = Math.max(0, FREE_NUDGES_PER_MONTH - usedThisMonth);
 
@@ -73,7 +102,7 @@ export function useNudgeQuota(isPro: boolean) {
     }
     p.count += 1;
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(p));
-    setUsedThisMonth(p.count);
+    emitQuotaChanged();
   }, [isPro]);
 
   const canSendFree = isPro || usedThisMonth < FREE_NUDGES_PER_MONTH;

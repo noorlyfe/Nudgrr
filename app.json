@@ -2,43 +2,86 @@
   "expo": {
     "name": "Nudgrr",
     "slug": "nudgrr",
-    "version": "1.0.0",
+    "version": "1.0.5",
     "orientation": "portrait",
     "scheme": "nudgrr",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "icon": "./assets/icon.png",
     "splash": {
-      "image": "./assets/splash.png",
+      "backgroundColor": "#FFF9F0",
       "resizeMode": "contain",
-      "backgroundColor": "#EBDDC8",
-      "imageWidth": 360
+      "image": "./assets/splash.png"
     },
     "ios": {
+      "icon": {
+        "light": "./assets/icon.png",
+        "dark": "./assets/icon-dark.png"
+      },
       "supportsTablet": false,
-      "bundleIdentifier": "com.noorlyfe.nudgrr"
+      "bundleIdentifier": "com.noorlyfe.nudgrr",
+      "buildNumber": "5",
+      "infoPlist": {
+        "CFBundleLocalizations": [
+          "en",
+          "zh-Hans",
+          "zh-Hant",
+          "da",
+          "fr",
+          "de",
+          "ja",
+          "es"
+        ],
+        "NSLocationWhenInUseUsageDescription": "This app does not use your location."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#EBDDC8"
+        "backgroundColor": "#00000000"
       },
-      "package": "com.noorlyfe.nudgrr"
+      "package": "com.noorlyfe.nudgrr",
+      "versionCode": 6
     },
     "plugins": [
+      [
+        "onesignal-expo-plugin",
+        {
+          "mode": "production"
+        }
+      ],
       "expo-router",
       "expo-sharing",
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#EBDDC8",
+          "backgroundColor": "#FFF9F0",
           "image": "./assets/splash.png",
-          "imageWidth": 360,
           "resizeMode": "contain"
         }
-      ]
+      ],
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/SpaceMono_400Regular.ttf"
+          ]
+        }
+      ],
+      "expo-localization",
+      "./plugins/withBootOverlay"
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "fonts": [
+      "./assets/fonts/SpaceMono_400Regular.ttf"
+    ],
+    "extra": {
+      "oneSignalAppId": "f9df7667-c5ba-438a-bed7-66fd6dafa6ed",
+      "router": {},
+      "eas": {
+        "projectId": "56a457d6-372e-4f5d-b1cf-1e9fa83961b3"
+      }
     }
   }
 }

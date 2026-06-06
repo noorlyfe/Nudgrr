@@ -7,9 +7,11 @@ import Animated, {
   withSequence,
   withSpring,
 } from "react-native-reanimated";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 
-import { colors, radii, spacing, touchTarget } from "../constants/theme";
+import { fonts, radii, spacing, touchTarget, typography, type AppColors } from "../constants/theme";
+import { useLocale } from "../hooks/useLocale";
+import { useColors } from "../hooks/useColors";
 
 const pulseSpring = { damping: 12, stiffness: 140, mass: 0.4 };
 
@@ -20,6 +22,10 @@ type ShareReceiptButtonProps = {
 };
 
 export function ShareReceiptButton({ ready, onPress, disabled }: ShareReceiptButtonProps) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
+  const { t } = useLocale();
   const pulse = useSharedValue(1);
 
   useEffect(() => {
@@ -45,7 +51,7 @@ export function ShareReceiptButton({ ready, onPress, disabled }: ShareReceiptBut
   }));
 
   return (
-    <Animated.View style={animatedStyle}>
+    <Animated.View style={[animatedStyle, styles.btnWrap]}>
       <Pressable
         onPress={onPress}
         disabled={disabled || !ready}
@@ -55,23 +61,33 @@ export function ShareReceiptButton({ ready, onPress, disabled }: ShareReceiptBut
           pressed && ready && !disabled && styles.btnPressed,
         ]}
         accessibilityRole="button"
-        accessibilityLabel="Share receipt"
+        accessibilityLabel={t("shareReceiptA11y")}
         accessibilityState={{ disabled: !ready || Boolean(disabled) }}
       >
-        <Text style={styles.btnText}>📤 Share Receipt</Text>
+        <Text style={styles.btnText}>{t("shareReceipt")}</Text>
       </Pressable>
     </Animated.View>
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
+  btnWrap: {
+    width: "100%",
+  },
   btn: {
-    minHeight: touchTarget.min + 6,
-    borderRadius: radii.md,
+    minHeight: touchTarget.min + 4,
+    width: "100%",
+    borderRadius: radii.lg,
     backgroundColor: colors.accent,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: spacing.xl,
+    shadowColor: colors.shadow,
+    shadowOpacity: colors.cardShadowOpacity + 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 5,
   },
   btnDisabled: {
     opacity: 0.4,
@@ -80,8 +96,10 @@ const styles = StyleSheet.create({
     opacity: 0.92,
   },
   btnText: {
-    fontFamily: "SpaceMono_700Bold",
-    fontSize: 17,
+    ...typography.body,
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 16,
     color: colors.pillActiveText,
   },
-});
+  });
+}

@@ -1,11 +1,16 @@
-import { memo, useMemo } from "react";
-import { StyleSheet, Text, View, type TextStyle } from "react-native";
-import Svg, { Defs, FeTurbulence, Filter, G, Path, Rect } from "react-native-svg";
+import { memo, useCallback, useMemo, useState } from "react";
+import type { LayoutChangeEvent } from "react-native";
+import { Platform, StyleSheet, Text, View } from "react-native";
 
-import { getReceiptTonePack } from "../constants/receiptTone";
+import { getLocalizedReceiptTonePack } from "../constants/receiptTone";
 import type { NudgeTone } from "../constants/messages";
-import { receipt } from "../constants/theme";
-import { formatUsd } from "../hooks/useTipCalculator";
+import { fonts, getReceiptColors, radii, spacing, typography } from "../constants/theme";
+import { useLocale } from "../hooks/useLocale";
+import { useTheme } from "../hooks/useTheme";
+import { formatCurrency } from "../lib/currency";
+import { ReceiptCustomFooter } from "./ReceiptCustomFooter";
+import { resolveReceiptFooterText } from "../lib/receiptFooter";
+import { rtlRow } from "../lib/rtl";
 
 export type ReceiptCardProps = {
   width: number;
@@ -18,133 +23,75 @@ export type ReceiptCardProps = {
   totalPerPerson: number;
   people: number;
   isPro: boolean;
+  hideReceiptBranding?: boolean;
   customFooter: string;
   tone: NudgeTone;
+  currencyCode: string;
+  previewText?: string;
+  zigzagHorizontalOnly?: boolean;
 };
 
-type ToneAppearance = {
-  paperBg: string;
-  paperOpacity: number;
-  textColor: string;
-  brandColor: string;
-  dashOpacity: number;
-  accentBg: string;
-  accentBorder: string;
-  footerMutedColor: string;
+type ReceiptColors = {
+  background: string;
+  text: string;
+  accent: string;
+  divider: string;
+  muted: string;
+  surface: string;
 };
 
-function jaggedTopCapPath(width: number): string {
-  const base = 10;
-  const alt = 4;
-  const steps = Math.max(16, Math.floor(width / 10));
-  const parts: string[] = ["M0,0", `L${width},0`, `L${width},${base}`];
-  for (let i = steps; i >= 0; i--) {
-    const x = (width * i) / steps;
-    const y = i % 2 === 0 ? alt : base;
-    parts.push(`L${x.toFixed(1)},${y}`);
-  }
-  parts.push("L0,0", "Z");
-  return parts.join(" ");
+function receiptColorsForTheme(isDark: boolean): ReceiptColors {
+  return getReceiptColors(isDark);
 }
 
-function DashedRule({ w, color, opacity }: { w: number; color: string; opacity: number }) {
+function DashedRule({ color }: { color: string }) {
   return (
-    <View style={[styles.rule, { width: w, opacity }]}>
-      {Array.from({ length: Math.floor(w / 10) }).map((_, i) => (
-        <View key={i} style={[styles.ruleDash, { backgroundColor: color }]} />
+    <View
+      style={{
+        borderTopWidth: 1,
+        borderColor: color,
+        borderStyle: "dashed",
+        marginVertical: 10,
+        width: "100%",
+      }}
+    />
+  );
+}
+
+function PerforationEdge({ width, color, position }: { width: number; color: string; position: "top" | "bottom" }) {
+  const circles = Math.floor(width / 12);
+  return (
+    <View
+      style={{
+        flexDirection: "row",
+        justifyContent: "space-around",
+        paddingHorizontal: 6,
+        marginTop: position === "bottom" ? 12 : 0,
+        marginBottom: position === "top" ? 12 : 0,
+      }}
+    >
+      {Array.from({ length: circles }).map((_, i) => (
+        <View
+          key={i}
+          style={{
+            width: 6,
+            height: 6,
+            borderRadius: 3,
+            backgroundColor: color,
+            opacity: 0.4,
+          }}
+        />
       ))}
     </View>
   );
 }
 
-function taglineStyleForTone(tone: NudgeTone): TextStyle {
-  switch (tone) {
-    case "funny":
-      return { fontSize: 12, marginTop: 6, lineHeight: 16 };
-    case "casual":
-      return { fontSize: 11, marginTop: 6, opacity: 0.92, letterSpacing: 0.5 };
-    case "passiveAggressive":
-      return { fontSize: 10, marginTop: 6, fontStyle: "italic", lineHeight: 14 };
-    case "serious":
-      return { fontSize: 9, marginTop: 8, letterSpacing: 1.4, textTransform: "uppercase" as const };
-    default:
-      return {};
-  }
+export function receiptShareHeight(width: number): number {
+  return (width * 16) / 9;
 }
 
-function brandLineForTone(tone: NudgeTone): string {
-  switch (tone) {
-    case "funny":
-      return "Nudgrr";
-    case "casual":
-      return "nudgrr";
-    case "passiveAggressive":
-      return "Nudgrr";
-    case "serious":
-      return "NUDGRR";
-    default:
-      return "Nudgrr";
-  }
-}
-
-function toneAppearanceForTone(tone: NudgeTone): ToneAppearance {
-  switch (tone) {
-    case "funny":
-      return {
-        paperBg: "#FFF7DC",
-        paperOpacity: 0.18,
-        textColor: "#4A3712",
-        brandColor: "#8B6A23",
-        dashOpacity: 0.75,
-        accentBg: "#FFF1C2",
-        accentBorder: "#D6B567",
-        footerMutedColor: "#9D8752",
-      };
-    case "casual":
-      return {
-        paperBg: "#F5F4EE",
-        paperOpacity: 0.12,
-        textColor: "#2F302F",
-        brandColor: "#6D716A",
-        dashOpacity: 0.5,
-        accentBg: "#ECEBE3",
-        accentBorder: "#CACDC1",
-        footerMutedColor: "#7C8178",
-      };
-    case "passiveAggressive":
-      return {
-        paperBg: "#FCF4F7",
-        paperOpacity: 0.15,
-        textColor: "#3B2A34",
-        brandColor: "#7B5C6C",
-        dashOpacity: 0.56,
-        accentBg: "#F8E9F0",
-        accentBorder: "#D8B5C5",
-        footerMutedColor: "#8A6A79",
-      };
-    case "serious":
-      return {
-        paperBg: "#EFEFEE",
-        paperOpacity: 0.1,
-        textColor: "#1A1A1A",
-        brandColor: "#4E4E4E",
-        dashOpacity: 0.42,
-        accentBg: "#E7E7E7",
-        accentBorder: "#B9B9B9",
-        footerMutedColor: "#636363",
-      };
-    default:
-      return {
-        paperBg: receipt.background,
-        paperOpacity: 0.14,
-        textColor: receipt.text,
-        brandColor: receipt.branding,
-        dashOpacity: 0.55,
-        accentBg: "#F2F2EC",
-        accentBorder: "#D1D1C7",
-        footerMutedColor: receipt.branding,
-      };
-  }
+export function receiptCaptureOuterWidth(width: number): number {
+  return width;
 }
 
 export const ReceiptCard = memo(function ReceiptCard({
@@ -158,231 +105,202 @@ export const ReceiptCard = memo(function ReceiptCard({
   totalPerPerson,
   people,
   isPro,
+  hideReceiptBranding = false,
   customFooter,
   tone,
+  currencyCode,
+  previewText,
 }: ReceiptCardProps) {
-  const pack = useMemo(() => getReceiptTonePack(tone), [tone]);
-  const look = useMemo(() => toneAppearanceForTone(tone), [tone]);
-  const title = restaurantLabel.trim() || "Dinner";
+  const { t, isRTL } = useLocale();
+  const { isDark } = useTheme();
+  const pack = useMemo(() => getLocalizedReceiptTonePack(tone, t), [tone, t]);
+  const colors = useMemo(() => receiptColorsForTheme(isDark), [isDark]);
+
+  const title = restaurantLabel.trim() || t("dinner");
   const tipPctLabel =
-    Math.abs(tipPercent - Math.round(tipPercent)) < 0.001 ? `${Math.round(tipPercent)}` : `${tipPercent}`;
+    Math.abs(tipPercent - Math.round(tipPercent)) < 0.001
+      ? `${Math.round(tipPercent)}`
+      : `${tipPercent}`;
 
-  const footerText = useMemo(() => {
-    if (isPro) {
-      return customFooter.trim();
-    }
-    return pack.freeFooter;
-  }, [customFooter, isPro, pack.freeFooter]);
+  const footerText = useMemo(
+    () => resolveReceiptFooterText(isPro, customFooter),
+    [customFooter, isPro]
+  );
 
-  const topPath = useMemo(() => jaggedTopCapPath(width), [width]);
-  const restaurantLine =
-    tone === "funny"
-      ? `📍 ${title}`
-      : tone === "passiveAggressive"
-        ? `Regarding: ${title}`
-        : tone === "serious"
-          ? `Establishment: ${title}`
-          : title;
+  const showBranding = !(isPro && hideReceiptBranding);
 
   return (
-    <View style={[styles.root, { width }]}>
-      <Svg width={width} height={12} viewBox={`0 0 ${width} 12`}>
-        <Path d={topPath} fill={look.paperBg} />
-      </Svg>
+    <View
+      style={[
+        styles.root,
+        {
+          width,
+          backgroundColor: colors.background,
+          borderColor: colors.divider,
+        },
+      ]}
+    >
+      <PerforationEdge width={width} color={colors.muted} position="top" />
 
-      <View style={[styles.body, { width, backgroundColor: look.paperBg }]}>
-        <View style={styles.textureWrap} pointerEvents="none">
-          <Svg width={width} height="100%" style={StyleSheet.absoluteFill}>
-            <Defs>
-              <Filter id="paperGrain" x="-20%" y="-20%" width="140%" height="140%">
-                <FeTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="2" seed="8" />
-              </Filter>
-            </Defs>
-            <Rect
-              x="0"
-              y="0"
-              width={width}
-              height={720}
-              fill={look.paperBg}
-              filter="url(#paperGrain)"
-              opacity={look.paperOpacity}
-            />
-          </Svg>
+      <View style={styles.inner}>
+        <View style={styles.header}>
+          {showBranding ? (
+            <>
+              <Text style={[styles.brand, { color: colors.text }]}>NUDGRR</Text>
+              <Text style={[styles.tagline, { color: colors.muted }]}>{pack.tagline}</Text>
+            </>
+          ) : (
+            <Text style={[styles.titleMain, { color: colors.text }]}>{title}</Text>
+          )}
+          <Text style={[styles.date, { color: colors.muted }]}>{dateLabel}</Text>
+          <Text style={[styles.dateFlavor, { color: colors.muted }]}>{pack.dateFlavor}</Text>
         </View>
 
-        <Text style={[styles.brand, { color: look.textColor }]}>{brandLineForTone(tone)}</Text>
-        <Text style={[styles.tagline, taglineStyleForTone(tone), { color: look.textColor }]}>{pack.tagline}</Text>
-        <Text style={[styles.date, { color: look.brandColor }]}>{dateLabel}</Text>
-        <Text
-          style={[styles.dateFlavor, tone === "serious" && styles.dateFlavorSerious, { color: look.brandColor }]}
-        >
-          {pack.dateFlavor}
-        </Text>
-        <Text
-          style={[styles.restaurant, tone === "funny" && styles.restaurantFunny, { color: look.textColor }]}
-          numberOfLines={3}
-        >
-          {restaurantLine}
-        </Text>
+        <DashedRule color={colors.divider} />
 
-        <DashedRule w={width - 40} color={look.textColor} opacity={look.dashOpacity} />
-        <View style={styles.padH}>
-          <View style={styles.row}>
-            <Text style={[styles.lineLabel, lineLabelTone(tone), { color: look.textColor }]}>{pack.billLabel}</Text>
-            <Text style={[styles.lineVal, { color: look.textColor }]}>{formatUsd(billAmount)}</Text>
+        {showBranding ? (
+          <Text style={[styles.restaurantName, { color: colors.text }]}>{title}</Text>
+        ) : null}
+
+        <View style={[styles.messageBox, { backgroundColor: colors.surface, borderColor: colors.divider }]}>
+          <Text style={[styles.messageText, { color: colors.text }]} numberOfLines={8}>
+            {previewText ?? ""}
+          </Text>
+        </View>
+
+        <DashedRule color={colors.divider} />
+
+        <View style={styles.lineItems}>
+          <View style={[styles.row, rtlRow(isRTL)]}>
+            <Text style={[styles.lineLabel, { color: colors.muted }]}>{pack.billLabel}</Text>
+            <Text style={[styles.lineVal, { color: colors.text }]}>
+              {formatCurrency(billAmount, currencyCode)}
+            </Text>
           </View>
-          <View style={styles.row}>
-            <Text style={[styles.lineLabel, lineLabelTone(tone), { color: look.textColor }]}>
+          <View style={[styles.row, rtlRow(isRTL)]}>
+            <Text style={[styles.lineLabel, { color: colors.muted }]}>
               {pack.tipLabel(tipPctLabel)}
             </Text>
-            <Text style={[styles.lineVal, { color: look.textColor }]}>{formatUsd(tipAmount)}</Text>
-          </View>
-          <View style={styles.row}>
-            <Text style={[styles.lineLabelStrong, lineLabelTone(tone), { color: look.textColor }]}>
-              {pack.totalLabel}
+            <Text style={[styles.lineVal, { color: colors.text }]}>
+              {formatCurrency(tipAmount, currencyCode)}
             </Text>
-            <Text style={[styles.lineValStrong, { color: look.textColor }]}>{formatUsd(totalAmount)}</Text>
+          </View>
+          <View style={[styles.row, rtlRow(isRTL)]}>
+            <Text style={[styles.lineLabelBold, { color: colors.text }]}>{pack.totalLabel}</Text>
+            <Text style={[styles.lineValBold, { color: colors.text }]}>
+              {formatCurrency(totalAmount, currencyCode)}
+            </Text>
           </View>
         </View>
 
-        <DashedRule w={width - 40} color={look.textColor} opacity={look.dashOpacity} />
+        <DashedRule color={colors.divider} />
 
-        <View style={[styles.padH, styles.splitBox, { backgroundColor: look.accentBg, borderColor: look.accentBorder }]}>
-          <Text style={[styles.eachLabel, eachLabelTone(tone), { color: look.textColor }]}>{pack.eachTitle}</Text>
-          <Text style={[styles.eachAmount, tone === "funny" && styles.eachAmountFunny, { color: look.textColor }]}>
-            {formatUsd(totalPerPerson)}
+        <View style={[styles.shareBox, { backgroundColor: colors.surface, borderColor: colors.divider }]}>
+          <Text style={[styles.shareLabel, { color: colors.muted }]}>{pack.eachTitle}</Text>
+          <Text style={[styles.shareAmount, { color: colors.accent }]}>
+            {formatCurrency(totalPerPerson, currencyCode)}
           </Text>
-          <Text style={[styles.splitMeta, tone === "passiveAggressive" && styles.splitMetaPassive, { color: look.brandColor }]}>
+          <Text style={[styles.shareMeta, { color: colors.muted }]}>
             {pack.splitCaption(people)}
           </Text>
         </View>
 
-        <Text
-          style={[
-            styles.footer,
-            { color: look.textColor },
-            !isPro && styles.footerFaint,
-            !isPro && { color: look.footerMutedColor },
-          ]}
-          numberOfLines={4}
-        >
-          {footerText || " "}
-        </Text>
+        <DashedRule color={colors.divider} />
+
+        <ReceiptCustomFooter text={footerText} color={colors.muted} />
+
+        {showBranding ? (
+          <Text style={[styles.madeWith, { color: colors.muted }]}>
+            Made with Nudgrr
+          </Text>
+        ) : null}
       </View>
 
-      <Svg width={width} height={12} viewBox={`0 0 ${width} 12`}>
-        <G transform={`translate(0,12) scale(1,-1)`}>
-          <Path d={topPath} fill={look.paperBg} />
-        </G>
-      </Svg>
+      <PerforationEdge width={width} color={colors.muted} position="bottom" />
     </View>
   );
 });
 
-function lineLabelTone(tone: NudgeTone): TextStyle {
-  if (tone === "serious") {
-    return { fontSize: 11, letterSpacing: 0.3 };
-  }
-  if (tone === "funny") {
-    return { fontSize: 12 };
-  }
-  return {};
-}
-
-function eachLabelTone(tone: NudgeTone): TextStyle {
-  if (tone === "serious") {
-    return { letterSpacing: 0.5, textTransform: "uppercase" as const, fontSize: 11 };
-  }
-  if (tone === "funny") {
-    return { fontSize: 13, letterSpacing: 0.2 };
-  }
-  if (tone === "passiveAggressive") {
-    return { fontSize: 11, lineHeight: 16 };
-  }
-  return {};
-}
-
 const styles = StyleSheet.create({
   root: {
     alignSelf: "center",
-    backgroundColor: "transparent",
-  },
-  body: {
-    backgroundColor: receipt.background,
-    paddingTop: 4,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
+    flexShrink: 0,
+    borderWidth: 0.5,
+    borderRadius: 4,
     overflow: "hidden",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOpacity: 0.08,
+        shadowRadius: 18,
+        shadowOffset: { width: 0, height: 10 },
+      },
+      android: { elevation: 6 },
+      default: {},
+    }),
   },
-  textureWrap: {
-    ...StyleSheet.absoluteFillObject,
-    opacity: 1,
+  inner: {
+    paddingHorizontal: 20,
+    paddingVertical: 4,
+  },
+  header: {
+    alignItems: "center",
+    gap: 4,
+    paddingVertical: 8,
   },
   brand: {
-    fontFamily: "SpaceMono_700Bold",
+    fontFamily: fonts.mono,
     fontSize: 18,
-    color: receipt.text,
+    letterSpacing: 4,
     textAlign: "center",
-    letterSpacing: -0.5,
+  },
+  titleMain: {
+    fontFamily: fonts.mono,
+    fontSize: 18,
+    letterSpacing: 1,
+    textAlign: "center",
   },
   tagline: {
-    fontFamily: "SpaceMono_700Bold",
-    color: receipt.text,
+    fontFamily: fonts.mono,
+    fontSize: 9,
+    letterSpacing: 1.5,
     textAlign: "center",
+    marginTop: 2,
   },
   date: {
-    fontFamily: "SpaceMono_400Regular",
-    fontSize: 11,
-    color: receipt.branding,
+    fontFamily: fonts.mono,
+    fontSize: 10,
     textAlign: "center",
-    marginTop: 8,
+    marginTop: 6,
   },
   dateFlavor: {
-    fontFamily: "SpaceMono_400Regular",
+    fontFamily: fonts.mono,
     fontSize: 9,
-    color: receipt.branding,
     textAlign: "center",
-    marginTop: 3,
-    opacity: 0.9,
+    marginTop: 2,
+    opacity: 0.8,
   },
-  dateFlavorSerious: {
-    fontSize: 8,
-    letterSpacing: 0.4,
-    textTransform: "uppercase" as const,
-  },
-  restaurant: {
-    fontFamily: "SpaceMono_700Bold",
-    fontSize: 15,
-    color: receipt.text,
-    textAlign: "center",
-    marginTop: 12,
-    marginBottom: 14,
-  },
-  restaurantFunny: {
+  restaurantName: {
+    fontFamily: fonts.mono,
     fontSize: 14,
-    lineHeight: 20,
+    letterSpacing: 0.5,
+    textAlign: "center",
+    marginBottom: 10,
   },
-  rule: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignSelf: "center",
-    marginVertical: 12,
-    opacity: 0.55,
+  messageBox: {
+    borderWidth: 0.5,
+    borderRadius: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 4,
   },
-  ruleDash: {
-    width: 5,
-    height: 1,
-    backgroundColor: receipt.text,
-    marginHorizontal: 1,
+  messageText: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    lineHeight: 17,
   },
-  padH: {
-    gap: 8,
-  },
-  splitBox: {
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+  lineItems: {
+    gap: 6,
   },
   row: {
     flexDirection: "row",
@@ -390,66 +308,56 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   lineLabel: {
-    fontFamily: "SpaceMono_400Regular",
-    fontSize: 13,
-    color: receipt.text,
+    fontFamily: fonts.mono,
+    fontSize: 10,
     flex: 1,
-    paddingRight: 8,
-  },
-  lineLabelStrong: {
-    fontFamily: "SpaceMono_700Bold",
-    fontSize: 13,
-    color: receipt.text,
-    flex: 1,
-    paddingRight: 8,
   },
   lineVal: {
-    fontFamily: "SpaceMono_400Regular",
-    fontSize: 13,
-    color: receipt.text,
-  },
-  lineValStrong: {
-    fontFamily: "SpaceMono_700Bold",
-    fontSize: 13,
-    color: receipt.text,
-  },
-  eachLabel: {
-    fontFamily: "SpaceMono_700Bold",
-    fontSize: 13,
-    color: receipt.text,
-    marginTop: 4,
-    textAlign: "center",
-  },
-  eachAmount: {
-    fontFamily: "SpaceMono_700Bold",
-    fontSize: 26,
-    color: receipt.text,
-    marginTop: 4,
-    letterSpacing: -1,
-    textAlign: "center",
-  },
-  eachAmountFunny: {
-    fontSize: 28,
-  },
-  splitMeta: {
-    fontFamily: "SpaceMono_400Regular",
-    fontSize: 12,
-    color: receipt.branding,
-    marginTop: 6,
-    textAlign: "center",
-  },
-  splitMetaPassive: {
-    fontSize: 11,
-    lineHeight: 16,
-  },
-  footer: {
-    fontFamily: "SpaceMono_400Regular",
+    fontFamily: fonts.mono,
     fontSize: 10,
-    color: receipt.text,
-    textAlign: "center",
-    marginTop: 18,
   },
-  footerFaint: {
-    color: receipt.branding,
+  lineLabelBold: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    fontWeight: "500",
+    flex: 1,
+  },
+  lineValBold: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    fontWeight: "500",
+  },
+  shareBox: {
+    borderWidth: 0.5,
+    borderRadius: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+    gap: 4,
+  },
+  shareLabel: {
+    fontFamily: fonts.mono,
+    fontSize: 9,
+    letterSpacing: 1.5,
+    textTransform: "uppercase",
+  },
+  shareAmount: {
+    fontFamily: fonts.mono,
+    fontSize: 32,
+    fontWeight: "500",
+    letterSpacing: -1,
+    marginTop: 4,
+  },
+  shareMeta: {
+    fontFamily: fonts.mono,
+    fontSize: 9,
+    marginTop: 2,
+  },
+  madeWith: {
+    fontFamily: fonts.mono,
+    fontSize: 8,
+    letterSpacing: 0.5,
+    textAlign: "center",
+    marginTop: 4,
   },
 });

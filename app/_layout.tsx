@@ -1,29 +1,91 @@
 import "react-native-gesture-handler";
-import { useEffect } from "react";
-import { Platform } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { useEffect, useMemo } from "react";
+import { I18nManager, Platform, StyleSheet, View } from "react-native";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { useFonts, DMSerifDisplay_400Regular } from "@expo-google-fonts/dm-serif-display";
-import { SpaceMono_400Regular, SpaceMono_700Bold } from "@expo-google-fonts/space-mono";
-import Purchases, { LOG_LEVEL } from "react-native-purchases";
+import {
+  Inter_400Regular,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from "@expo-google-fonts/inter";
+import { useFonts } from "expo-font";
 
 import {
   isRevenueCatApiKeySet,
   REVENUECAT_API_KEY_ANDROID,
   REVENUECAT_API_KEY_IOS,
 } from "../constants/purchases";
-import { colors } from "../constants/theme";
-
-const MIN_SPLASH_MS = 1200;
-const appBootTs = Date.now();
+import { useColors } from "../hooks/useColors";
+import { ThemeProvider } from "../hooks/useTheme";
+import { UpdateGate } from "../components/UpdateGate";
+import { LocaleProvider, useLocale } from "../contexts/LocaleContext";
+import { AppPreferencesProvider } from "../hooks/useAppPreferences";
+import { ReceiptFooterProvider } from "../hooks/useReceiptFooter";
+import { initOneSignal } from "../lib/oneSignal";
 
 SplashScreen.preventAutoHideAsync();
 
+if (Platform.OS !== "web") {
+  void initOneSignal();
+}
+
+/** Matches splash screen — frame-perfect handoff from native splash */
+const SPLASH_BACKGROUND = "#FFF9F0";
+
+function AppShell({ fontsLoaded }: { fontsLoaded: boolean }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(), []);
+
+  const { isRTL } = useLocale();
+
+  useEffect(() => {
+    if (Platform.OS === "web") {
+      return;
+    }
+    if (I18nManager.isRTL !== isRTL) {
+      I18nManager.forceRTL(isRTL);
+    }
+  }, [isRTL]);
+
+  if (!fontsLoaded) {
+    return <View style={styles.root} />;
+  }
+
+  return (
+    <GestureHandlerRootView style={styles.root}>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: colors.background },
+          animation: "slide_from_right",
+        }}
+      >
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="history" />
+        <Stack.Screen name="project" />
+        <Stack.Screen name="settings" />
+        <Stack.Screen name="currency" />
+        <Stack.Screen name="privacy" />
+        <Stack.Screen name="terms" />
+        <Stack.Screen
+          name="paywall"
+          options={{
+            presentation: "modal",
+            animation: "slide_from_bottom",
+          }}
+        />
+      </Stack>
+    </GestureHandlerRootView>
+  );
+}
+
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
-    DMSerifDisplay_400Regular,
-    SpaceMono_400Regular,
-    SpaceMono_700Bold,
+    SpaceMono_400Regular: require("../assets/fonts/SpaceMono_400Regular.ttf"),
+    Inter_400Regular,
+    Inter_600SemiBold,
+    Inter_700Bold,
   });
 
   useEffect(() => {
@@ -35,6 +97,7 @@ export default function RootLayout() {
     }
     void (async () => {
       try {
+        const { default: Purchases, LOG_LEVEL } = await import("react-native-purchases");
         await Purchases.setLogLevel(LOG_LEVEL.VERBOSE);
         if (Platform.OS === "ios") {
           await Purchases.configure({ apiKey: REVENUECAT_API_KEY_IOS });
@@ -49,39 +112,30 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (fontsLoaded) {
-      const elapsed = Date.now() - appBootTs;
-      const waitMs = Math.max(0, MIN_SPLASH_MS - elapsed);
-      const timer = setTimeout(() => {
-        void SplashScreen.hideAsync();
-      }, waitMs);
-      return () => clearTimeout(timer);
+      void SplashScreen.hideAsync();
     }
   }, [fontsLoaded]);
 
-  if (!fontsLoaded) {
-    return null;
-  }
-
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        contentStyle: { backgroundColor: colors.background },
-        animation: "slide_from_right",
-      }}
-    >
-      <Stack.Screen name="index" />
-      <Stack.Screen name="history" />
-      <Stack.Screen name="settings" />
-      <Stack.Screen name="privacy" />
-      <Stack.Screen name="terms" />
-      <Stack.Screen
-        name="paywall"
-        options={{
-          presentation: "modal",
-          animation: "slide_from_bottom",
-        }}
-      />
-    </Stack>
+    <ThemeProvider>
+      <AppPreferencesProvider>
+        <ReceiptFooterProvider>
+          <LocaleProvider>
+            <UpdateGate>
+              <AppShell fontsLoaded={fontsLoaded} />
+            </UpdateGate>
+          </LocaleProvider>
+        </ReceiptFooterProvider>
+      </AppPreferencesProvider>
+    </ThemeProvider>
   );
+}
+
+function createStyles() {
+  return StyleSheet.create({
+    root: {
+      flex: 1,
+      backgroundColor: SPLASH_BACKGROUND,
+    },
+  });
 }

@@ -4,6 +4,7 @@ import Purchases, { type CustomerInfo } from "react-native-purchases";
 
 import { DEV_UNLOCK_ALL } from "../constants/devUnlock";
 import { isRevenueCatApiKeySet, REVENUECAT_UNLIMITED_ENTITLEMENT_ID } from "../constants/purchases";
+import { trackProStatus } from "../lib/oneSignal";
 
 function readIsPro(info: CustomerInfo | null): boolean {
   if (!info) {
@@ -40,6 +41,10 @@ export function useProStatus() {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    void trackProStatus(isPro);
+  }, [isPro]);
 
   useEffect(() => {
     if (DEV_UNLOCK_ALL || Platform.OS === "web" || !isRevenueCatApiKeySet()) {

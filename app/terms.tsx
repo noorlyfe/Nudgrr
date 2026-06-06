@@ -1,12 +1,17 @@
+import { useMemo } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { colors, spacing, typography } from "../constants/theme";
+import { fonts, radii, spacing, touchTarget, typography, type AppColors } from "../constants/theme";
+import { useLocale } from "../hooks/useLocale";
+import { useColors } from "../hooks/useColors";
+import { useTheme } from "../hooks/useTheme";
+import { rtlRow } from "../lib/rtl";
 import { safeRouterBack } from "../lib/safeRouterBack";
 
-const BODY = `Last updated: April 23, 2026
+const BODY = `Last updated: May 20, 2026
 
 These Terms of Use ("Terms") govern your use of the Nudgrr mobile app ("App") provided by Noorlyfe. By using the App, you agree to these Terms.
 
@@ -19,11 +24,14 @@ Nudgrr helps estimate bill splits, tips, and prepare casual text you may copy or
 SUBSCRIPTIONS & PURCHASES
 If you purchase a subscription, charges and renewal terms are set by the platform (Apple or Google) and are subject to their terms. Subscriptions, refunds, and billing questions are managed through the platform you used to purchase. Features included with a purchase are as described in the App at the time of purchase and may change.
 
+APP UPDATES
+We may release updates to the App from time to time. In some cases, continued use of the App may require you to install the latest version. If a mandatory update is required, you will be notified within the App and directed to update before continuing. We reserve the right to require updates where necessary for security, functionality, or legal compliance.
+
 ACCEPTABLE USE
 Do not misuse the App, attempt to break its security, or use it in a way that violates law or the rights of others. We may suspend or terminate your access to the App at any time, where permitted by law.
 
 THIRD-PARTY SERVICES
-Nudgrr does not require an account for core features. Information you enter and app settings (including split history, preferences, and on-device product counters) may be stored locally on your device. Subscription and purchase data are processed by Apple, Google, and our subscription provider RevenueCat, as further described in the Privacy Policy. Those services operate under their own terms and privacy policies. We do not sell or share personal data for advertising or marketing purposes.
+Nudgrr does not require an account for core features. Information you enter and app settings (including split history, preferences, and on-device product counters) may be stored locally on your device. Subscription and purchase data are processed by Apple, Google, and our subscription provider RevenueCat. Push notifications are delivered via OneSignal, Inc., which may process a pseudonymous device identifier to send notifications. Those services operate under their own terms and privacy policies. We do not sell or share personal data for advertising or marketing purposes.
 
 DISCLAIMER
 THE APP IS PROVIDED "AS IS" AND "AS AVAILABLE", WITHOUT WARRANTIES OF ANY KIND, TO THE FULLEST EXTENT PERMITTED BY LAW.
@@ -44,15 +52,20 @@ CONTACT
 nudgrr@noorlyfe.com`;
 
 export default function TermsScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { t, isRTL } = useLocale();
+  const { isDark } = useTheme();
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
-      <StatusBar style="dark" />
-      <View style={styles.header}>
+      <StatusBar style={isDark ? "light" : "dark"} />
+      <View style={[styles.header, rtlRow(isRTL)]}>
         <Pressable onPress={() => safeRouterBack(router)} hitSlop={12} style={({ pressed }) => [styles.back, pressed && styles.pressed]}>
-          <Text style={styles.backText}>Back</Text>
+          <Text style={styles.backText}>{t("back")}</Text>
         </Pressable>
         <Text style={styles.title}>Terms of Use</Text>
         <View style={styles.headerSpacer} />
@@ -71,26 +84,32 @@ export default function TermsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: spacing.lg,
-    minHeight: 48,
+    minHeight: touchTarget.min,
   },
   back: { minWidth: 56, minHeight: 44, justifyContent: "center" },
-  backText: { ...typography.body, color: colors.accent, fontFamily: "SpaceMono_700Bold" },
-  title: { ...typography.body, fontFamily: "SpaceMono_700Bold", fontSize: 16, color: colors.textPrimary, flex: 1, textAlign: "center" },
+  backText: { ...typography.body, fontFamily: fonts.bodySemiBold, color: colors.accent },
+  title: {
+    ...typography.body,
+    fontFamily: fonts.bodyBold,
+    color: colors.textPrimary,
+    flex: 1,
+    textAlign: "center",
+  },
   headerSpacer: { minWidth: 56 },
   scroll: { flex: 1 },
   content: { paddingHorizontal: spacing.lg, paddingTop: spacing.md },
   body: {
     ...typography.badge,
-    fontSize: 12,
-    lineHeight: 18,
     color: colors.textPrimary,
   },
   pressed: { opacity: 0.86 },
-});
+  });
+}

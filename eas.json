@@ -1,0 +1,33 @@
+{
+  "cli": {
+    "version": ">= 18.9.1",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_REVENUECAT_API_KEY_IOS": "appl_DhTqpVVlojtgQHbusCxKaEqgTkO",
+        "EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID": "goog_PFzNApaGoEWQliHAWTnyyEujHgz"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_REVENUECAT_API_KEY_IOS": "appl_DhTqpVVlojtgQHbusCxKaEqgTkO",
+        "EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID": "goog_PFzNApaGoEWQliHAWTnyyEujHgz"
+      }
+    },
+    "production": {
+      "autoIncrement": false,
+      "env": {
+        "EXPO_PUBLIC_REVENUECAT_API_KEY_IOS": "appl_DhTqpVVlojtgQHbusCxKaEqgTkO",
+        "EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID": "goog_PFzNApaGoEWQliHAWTnyyEujHgz"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

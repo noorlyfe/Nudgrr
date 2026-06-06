@@ -1,3 +1,5 @@
+import { minorDigitsToAmount } from "../lib/currency";
+
 export const TIP_PRESETS = [0, 10, 15, 18, 20, 25] as const;
 
 export type TipSplitResult = {
@@ -34,16 +36,13 @@ export function clampTipPercent(value: number): number {
   return value;
 }
 
-export function billDigitsToAmount(digits: string): number | null {
-  const clean = digits.replace(/\D/g, "");
-  if (!clean) {
+/** @param fractionDigits ISO minor units (e.g. 2 for USD/EUR, 0 for JPY). */
+export function billDigitsToAmount(digits: string, fractionDigits = 2): number | null {
+  const amount = minorDigitsToAmount(digits, fractionDigits);
+  if (amount === null) {
     return null;
   }
-  const cents = parseInt(clean, 10);
-  if (!Number.isFinite(cents)) {
-    return null;
-  }
-  return round2(cents / 100);
+  return round2(amount);
 }
 
 export type TipEntryMode = "percent" | "total" | "per_person";
@@ -131,12 +130,4 @@ export function computeTipSplit(
   };
 }
 
-export function formatUsd(amount: number): string {
-  const safe = Number.isFinite(amount) ? amount : 0;
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(safe);
-}
+export { formatCurrency } from "../lib/currency";

@@ -1,16 +1,8 @@
 import { Platform } from "react-native";
 
-/**
- * Public SDK keys (iOS / Android are often different in production).
- * Set `EXPO_PUBLIC_REVENUECAT_API_KEY` for both, or
- * `EXPO_PUBLIC_REVENUECAT_API_KEY_IOS` / `_ANDROID` separately.
- *
- * IMPORTANT:
- * - We intentionally do NOT ship a default test key.
- * - In release builds, keys starting with `test_` are treated as invalid.
- * - iOS builds only need the iOS key; Android only the Android key. Requiring both
- *   would block Purchases on a single-platform release.
- */
+// RevenueCat public SDK keys are designed to be embedded in client apps.
+// Env vars take priority (EAS builds); native Xcode Archive builds fall back to the hardcoded key.
+const FALLBACK_IOS_KEY = "appl_DhTqpVVlojtgQHbusCxKaEqgTkO";
 
 function env(name: string): string {
   return (process.env[name] ?? "").trim();
@@ -29,7 +21,7 @@ function sanitizeRevenueCatKey(key: string): string {
 }
 
 export const REVENUECAT_API_KEY_IOS = sanitizeRevenueCatKey(
-  env("EXPO_PUBLIC_REVENUECAT_API_KEY_IOS") || shared
+  env("EXPO_PUBLIC_REVENUECAT_API_KEY_IOS") || shared || FALLBACK_IOS_KEY
 );
 export const REVENUECAT_API_KEY_ANDROID = sanitizeRevenueCatKey(
   env("EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID") || shared

@@ -61,5 +61,24 @@ target 'Nudgrr' do
       :mac_catalyst_enabled => false,
       :ccache_enabled => ccache_enabled?(podfile_properties),
     )
+
+    # Xcode 16+: React-jsi UUID::toString — snprintf requires non-const char* (not buffer.data()).
+    jsi_header = File.expand_path('../node_modules/react-native/ReactCommon/jsi/jsi/jsi.h', __dir__)
+    if File.exist?(jsi_header)
+      contents = File.read(jsi_header)
+      fixed = contents.gsub(
+        "    std::snprintf(\n        buffer.data(),",
+        "    std::snprintf(\n        &buffer[0],"
+      )
+      if fixed != contents
+        File.write(jsi_header, fixed)
+        Pod::UI.puts 'Patched React-jsi jsi.h for Xcode 16 snprintf compatibility'
+      end
+    end
   end
+end
+
+target 'OneSignalNotificationServiceExtension' do
+  pod 'OneSignalXCFramework', '>= 5.0', '< 6.0'
+  use_frameworks! :linkage => podfile_properties['ios.useFrameworks'].to_sym if podfile_properties['ios.useFrameworks']
 end

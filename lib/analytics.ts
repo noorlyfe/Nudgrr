@@ -9,7 +9,8 @@ export type AnalyticsEvent =
   | "paywall_opened"
   | "paywall_purchase"
   | "paywall_restore"
-  | "paywall_fallback";
+  | "paywall_fallback"
+  | "paywall_web_store_link";
 
 export type CounterMap = Partial<Record<AnalyticsEvent, number>>;
 
@@ -26,23 +27,6 @@ export async function trackEvent(event: AnalyticsEvent): Promise<void> {
     if (__DEV__) {
       console.log(`[Analytics] ${event}`, parsed[event]);
     }
-  } catch {
-    // Best-effort only
-  }
-}
-
-export async function readAnalyticsCounters(): Promise<CounterMap> {
-  try {
-    const raw = await AsyncStorage.getItem(ANALYTICS_COUNTERS_KEY);
-    return raw ? (JSON.parse(raw) as CounterMap) : {};
-  } catch {
-    return {};
-  }
-}
-
-export async function resetAnalyticsCounters(): Promise<void> {
-  try {
-    await AsyncStorage.removeItem(ANALYTICS_COUNTERS_KEY);
   } catch {
     // Best-effort only
   }
