@@ -8,6 +8,7 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
+        "EAS_NO_FROZEN_LOCKFILE": "1",
         "EXPO_PUBLIC_REVENUECAT_API_KEY_IOS": "appl_DhTqpVVlojtgQHbusCxKaEqgTkO",
         "EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID": "goog_PFzNApaGoEWQliHAWTnyyEujHgz"
       }
@@ -15,6 +16,7 @@
     "preview": {
       "distribution": "internal",
       "env": {
+        "EAS_NO_FROZEN_LOCKFILE": "1",
         "EXPO_PUBLIC_REVENUECAT_API_KEY_IOS": "appl_DhTqpVVlojtgQHbusCxKaEqgTkO",
         "EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID": "goog_PFzNApaGoEWQliHAWTnyyEujHgz"
       }
@@ -22,6 +24,7 @@
     "production": {
       "autoIncrement": false,
       "env": {
+        "EAS_NO_FROZEN_LOCKFILE": "1",
         "EXPO_PUBLIC_REVENUECAT_API_KEY_IOS": "appl_DhTqpVVlojtgQHbusCxKaEqgTkO",
         "EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID": "goog_PFzNApaGoEWQliHAWTnyyEujHgz"
       }
