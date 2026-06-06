@@ -5,35 +5,41 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { createCanvas } from "@napi-rs/canvas";
+import { createCanvas, GlobalFonts } from "@napi-rs/canvas";
 import sharp from "sharp";
 
 const SIZE = 1024;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..");
 
+const BOLD_FONT = path.join(root, "assets/fonts/Inter_700Bold.ttf");
+if (!GlobalFonts.registerFromPath(BOLD_FONT, "InterBold")) {
+  throw new Error(`Failed to register font: ${BOLD_FONT}`);
+}
+
 const C = {
-  bg: "#3D3935",
+  bg: "#FFF9F0",
   bubble: "#565048",
-  bubbleBorder: "#6B6358",
+  bubbleBorder: "#E5A000",
   receipt: "#FFF9F0",
-  receiptBorder: "#FFC940",
+  receiptBorder: "#E5A000",
   itemLine: "rgba(100, 90, 78, 0.42)",
   totalLine: "rgba(80, 72, 62, 0.72)",
+  brandText: "#1C1917",
 };
 
 const BUBBLE = {
   width: Math.round(SIZE * 0.75),
   height: Math.round(SIZE * 0.62),
-  radius: 56,
+  radius: 96,
   offsetY: -44,
   tailWidth: 88,
   tailHeight: 76,
 };
 
 const RECEIPT = {
-  widthRatio: 0.54,
-  heightRatio: 0.62,
+  insetX: 6,
+  insetY: 8,
   waveAmp: 9,
   waveLen: 14,
   waveDepth: 12,
@@ -52,6 +58,33 @@ function traceZigzagEdge(ctx, xStart, xEnd, baseY, amp, halfLen, outwardSign) {
     ctx.lineTo(x, atPeak ? peakY : valleyY);
     if (x === xEnd) break;
   }
+}
+
+function roundedRectPath(ctx, x, y, width, height, radius) {
+  const right = x + width;
+  const bottom = y + height;
+  const r = Math.min(radius, width / 2, height / 2);
+
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(right - r, y);
+  ctx.arcTo(right, y, right, y + r, r);
+  ctx.lineTo(right, bottom - r);
+  ctx.arcTo(right, bottom, right - r, bottom, r);
+  ctx.lineTo(x + r, bottom);
+  ctx.arcTo(x, bottom, x, bottom - r, r);
+  ctx.lineTo(x, y + r);
+  ctx.arcTo(x, y, x + r, y, r);
+  ctx.closePath();
+}
+
+function getReceiptBounds(bubbleCx, bubbleCy) {
+  const receiptW = BUBBLE.width - RECEIPT.insetX * 2;
+  const receiptH = BUBBLE.height - RECEIPT.insetY * 2;
+  const left = Math.round(bubbleCx - receiptW / 2);
+  const top = Math.round(bubbleCy - BUBBLE.height / 2 + RECEIPT.insetY);
+  const radius = Math.max(8, BUBBLE.radius - RECEIPT.insetX);
+  return { left, top, receiptW, receiptH, radius };
 }
 
 function receiptPath(ctx, left, top, width, height, wave) {
@@ -117,34 +150,50 @@ function drawChatBubble(ctx) {
   ctx.fill();
 
   ctx.strokeStyle = C.bubbleBorder;
-  ctx.lineWidth = 6;
-  ctx.lineJoin = "round";
+  ctx.lineWidth = 10;
+  ctx.lineJoin = "miter";
+  ctx.lineCap = "butt";
   ctx.stroke();
 
   return { cx, cy };
 }
 
+function drawTrackedWordmark(ctx, text, centerX, baselineY, fontSize, color) {
+  const tracking = fontSize * -0.038;
+  ctx.font = `700 ${fontSize}px InterBold`;
+  ctx.fillStyle = color;
+  ctx.textBaseline = "bottom";
+  ctx.textAlign = "left";
+
+  const widths = [];
+  let totalWidth = 0;
+  for (const ch of text) {
+    const w = ctx.measureText(ch).width;
+    widths.push(w);
+    totalWidth += w;
+  }
+  totalWidth += tracking * (text.length - 1);
+
+  let x = centerX - totalWidth / 2;
+  for (let i = 0; i < text.length; i += 1) {
+    ctx.fillText(text[i], x, baselineY);
+    x += widths[i] + tracking;
+  }
+}
+
 function drawReceipt(ctx, bubbleCx, bubbleCy) {
-  const receiptW = Math.round(BUBBLE.width * RECEIPT.widthRatio);
-  const receiptH = Math.round(BUBBLE.height * RECEIPT.heightRatio);
-  const left = Math.round(bubbleCx - receiptW / 2);
-  const top = Math.round(bubbleCy - receiptH / 2 - 8);
+  const { left, top, receiptW, receiptH, radius } = getReceiptBounds(bubbleCx, bubbleCy);
   const wave = RECEIPT;
+
+  ctx.save();
+  roundedRectPath(ctx, left, top, receiptW, receiptH, radius);
+  ctx.clip();
 
   ctx.fillStyle = C.receipt;
   receiptPath(ctx, left, top, receiptW, receiptH, wave);
   ctx.fill();
 
-  ctx.strokeStyle = C.receiptBorder;
-  ctx.lineWidth = 5;
-  ctx.lineJoin = "round";
-  ctx.stroke();
-
-  ctx.save();
-  receiptPath(ctx, left, top, receiptW, receiptH, wave);
-  ctx.clip();
-
-  const padX = receiptW * 0.14;
+  const padX = receiptW * 0.1;
   const innerL = left + padX;
   const innerR = left + receiptW - padX;
   const bodyTop = top + wave.waveDepth + 6;
@@ -166,15 +215,26 @@ function drawReceipt(ctx, bubbleCx, bubbleCy) {
     ctx.stroke();
   }
 
-  const totalY = bodyTop + bodyHeight * 0.82;
+  const brandSize = Math.round(receiptW * 0.2);
+  const brandY = bodyTop + bodyHeight * 0.76;
+
   ctx.strokeStyle = C.totalLine;
   ctx.lineWidth = 3.5;
   ctx.beginPath();
-  ctx.moveTo(innerL, totalY);
-  ctx.lineTo(innerR, totalY);
+  ctx.moveTo(innerL, brandY);
+  ctx.lineTo(innerR, brandY);
   ctx.stroke();
 
+  drawTrackedWordmark(ctx, "NUDGRR", left + receiptW / 2, brandY - 3, brandSize, C.brandText);
+
   ctx.restore();
+
+  roundedRectPath(ctx, left, top, receiptW, receiptH, radius);
+  ctx.strokeStyle = C.receiptBorder;
+  ctx.lineWidth = 7;
+  ctx.lineJoin = "miter";
+  ctx.lineCap = "butt";
+  ctx.stroke();
 }
 
 function render() {
@@ -198,7 +258,7 @@ const ANDROID_SIZES = [
 
 async function flattenIcon(png) {
   return sharp(png)
-    .flatten({ background: { r: 0x3d, g: 0x39, b: 0x35 } })
+    .flatten({ background: { r: 0xff, g: 0xf9, b: 0xf0 } })
     .png()
     .toBuffer();
 }
