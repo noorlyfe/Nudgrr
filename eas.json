@@ -22,7 +22,7 @@
       }
     },
     "production": {
-      "autoIncrement": false,
+      "autoIncrement": true,
       "env": {
         "EAS_NO_FROZEN_LOCKFILE": "1",
         "EXPO_PUBLIC_REVENUECAT_API_KEY_IOS": "appl_DhTqpVVlojtgQHbusCxKaEqgTkO",
