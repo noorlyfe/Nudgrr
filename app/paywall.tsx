@@ -33,6 +33,7 @@ import { useProStatus } from "../hooks/useProStatus";
 import { trackEvent } from "../lib/analytics";
 import { safeRouterBack } from "../lib/safeRouterBack";
 import { PRIVACY_POLICY_BODY } from "./privacy";
+import { TERMS_BODY_ANDROID } from "./terms";
 
 const APPLE_EULA_URL = "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/";
 
@@ -467,15 +468,19 @@ export default function PaywallScreen() {
             showsVerticalScrollIndicator
           >
             {legalModal === "terms" ? (
-              <Text style={styles.legalModalBody}>
-                {t("paywallTermsEulaIntro")}
-                <Text
-                  style={styles.legalModalBodyLink}
-                  onPress={() => void Linking.openURL(APPLE_EULA_URL)}
-                >
-                  {APPLE_EULA_URL}
+              Platform.OS === "android" ? (
+                <Text style={styles.legalModalBody}>{TERMS_BODY_ANDROID}</Text>
+              ) : (
+                <Text style={styles.legalModalBody}>
+                  {t("paywallTermsEulaIntro")}
+                  <Text
+                    style={styles.legalModalBodyLink}
+                    onPress={() => void Linking.openURL(APPLE_EULA_URL)}
+                  >
+                    {APPLE_EULA_URL}
+                  </Text>
                 </Text>
-              </Text>
+              )
             ) : (
               <Text style={styles.legalModalBody}>{PRIVACY_POLICY_BODY}</Text>
             )}
