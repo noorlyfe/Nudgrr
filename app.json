@@ -2,7 +2,7 @@
   "expo": {
     "name": "Nudgrr",
     "slug": "nudgrr",
-    "version": "1.0.6",
+    "version": "1.0.5",
     "orientation": "portrait",
     "scheme": "nudgrr",
     "userInterfaceStyle": "automatic",
@@ -19,7 +19,7 @@
       },
       "supportsTablet": false,
       "bundleIdentifier": "com.noorlyfe.nudgrr",
-      "buildNumber": "5",
+      "buildNumber": "8",
       "infoPlist": {
         "CFBundleLocalizations": [
           "en",
@@ -40,7 +40,7 @@
         "backgroundColor": "#3D3935"
       },
       "package": "com.noorlyfe.nudgrr",
-      "versionCode": 7
+      "versionCode": 9
     },
     "plugins": [
       [
