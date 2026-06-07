@@ -23,8 +23,10 @@ function sanitizeRevenueCatKey(key: string): string {
 export const REVENUECAT_API_KEY_IOS = sanitizeRevenueCatKey(
   env("EXPO_PUBLIC_REVENUECAT_API_KEY_IOS") || shared || FALLBACK_IOS_KEY
 );
+const FALLBACK_ANDROID_KEY = "goog_PFzNApaGoEWQliHAWTnyyEujHgz";
+
 export const REVENUECAT_API_KEY_ANDROID = sanitizeRevenueCatKey(
-  env("EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID") || shared
+  env("EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID") || shared || FALLBACK_ANDROID_KEY
 );
 
 /** @deprecated Use `REVENUECAT_API_KEY_IOS` / `ANDROID` — kept for a few legacy imports. */

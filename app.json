@@ -40,7 +40,7 @@
         "backgroundColor": "#3D3935"
       },
       "package": "com.noorlyfe.nudgrr",
-      "versionCode": 9
+      "versionCode": 10
     },
     "plugins": [
       [
@@ -56,7 +56,13 @@
         {
           "backgroundColor": "#FFF9F0",
           "image": "./assets/splash.png",
-          "resizeMode": "contain"
+          "resizeMode": "contain",
+          "android": {
+            "image": "./assets/splash-android.png",
+            "backgroundColor": "#FFF9F0",
+            "resizeMode": "contain",
+            "imageWidth": 280
+          }
         }
       ],
       [
