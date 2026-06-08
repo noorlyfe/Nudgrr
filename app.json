@@ -2,7 +2,7 @@
   "expo": {
     "name": "Nudgrr",
     "slug": "nudgrr",
-    "version": "1.0.5",
+    "version": "1.0.6",
     "orientation": "portrait",
     "scheme": "nudgrr",
     "userInterfaceStyle": "automatic",
@@ -10,7 +10,7 @@
     "splash": {
       "backgroundColor": "#FFF9F0",
       "resizeMode": "contain",
-      "image": "./assets/splash.png"
+      "image": "./assets/splash-android.png"
     },
     "ios": {
       "icon": {
@@ -19,7 +19,7 @@
       },
       "supportsTablet": false,
       "bundleIdentifier": "com.noorlyfe.nudgrr",
-      "buildNumber": "8",
+      "buildNumber": "1",
       "infoPlist": {
         "CFBundleLocalizations": [
           "en",
@@ -40,7 +40,7 @@
         "backgroundColor": "#FFF9F0"
       },
       "package": "com.noorlyfe.nudgrr",
-      "versionCode": 16
+      "versionCode": 17
     },
     "plugins": [
       [
@@ -55,7 +55,7 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#FFF9F0",
-          "image": "./assets/splash.png",
+          "image": "./assets/splash-android.png",
           "resizeMode": "contain",
           "android": {
             "image": "./assets/splash-android.png",
@@ -73,8 +73,7 @@
           ]
         }
       ],
-      "expo-localization",
-      "./plugins/withBootOverlay"
+      "expo-localization"
     ],
     "experiments": {
       "typedRoutes": true

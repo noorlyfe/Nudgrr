@@ -26,21 +26,6 @@ class AppDelegate: ExpoAppDelegate {
       withModuleName: "main",
       in: window,
       launchOptions: launchOptions)
-
-    // Boot overlay
-    if let window = window {
-      let overlay = BootOverlayViewController(holdMs: 1200, exitMs: 400) { [weak window] in
-        window?.rootViewController?.view.isUserInteractionEnabled = true
-      }
-      window.rootViewController?.view.isUserInteractionEnabled = false
-      window.rootViewController?.addChild(overlay)
-      window.rootViewController?.view.addSubview(overlay.view)
-      overlay.view.frame = window.bounds
-      overlay.didMove(toParent: window.rootViewController)
-      DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-        overlay.markReactContentDidAppear()
-      }
-    }
 #endif
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
