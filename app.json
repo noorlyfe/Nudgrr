@@ -37,7 +37,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon-padded.png",
-        "backgroundColor": "#3D3935"
+        "backgroundColor": "#FFF9F0"
       },
       "package": "com.noorlyfe.nudgrr",
       "versionCode": 15
