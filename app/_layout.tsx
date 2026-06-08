@@ -25,6 +25,10 @@ import { ReceiptFooterProvider } from "../hooks/useReceiptFooter";
 import { initOneSignal } from "../lib/oneSignal";
 
 SplashScreen.preventAutoHideAsync();
+SplashScreen.setOptions({ duration: 400, fade: true });
+
+const MIN_SPLASH_MS = 1000;
+const appStartedAt = Date.now();
 
 if (Platform.OS !== "web") {
   void initOneSignal();
@@ -112,9 +116,16 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
-    if (fontsLoaded) {
-      void SplashScreen.hideAsync();
+    if (!fontsLoaded) {
+      return;
     }
+
+    const remaining = Math.max(0, MIN_SPLASH_MS - (Date.now() - appStartedAt));
+    const timer = setTimeout(() => {
+      void SplashScreen.hideAsync();
+    }, remaining);
+
+    return () => clearTimeout(timer);
   }, [fontsLoaded]);
 
   return (

@@ -185,7 +185,7 @@ PODS:
     - ExpoModulesCore
   - ExpoDomWebView (55.0.5):
     - ExpoModulesCore
-  - ExpoFileSystem (55.0.17):
+  - ExpoFileSystem (55.0.22):
     - ExpoModulesCore
   - ExpoFont (55.0.7):
     - ExpoModulesCore
@@ -2873,7 +2873,7 @@ SPEC CHECKSUMS:
   ExpoBlur: 7a86e84e7728108fa6908d7103fa527705a3dbbf
   ExpoClipboard: 5d1b0cd2686406f21e616f2d9b3431259dee2e6a
   ExpoDomWebView: 2b2fbd9a07de8790569257cbf9dfdaa31cf95c70
-  ExpoFileSystem: a0e4a5a09c9c4f84338289b273a172609452dec9
+  ExpoFileSystem: 61e663d0bbd1a973d324530d1d6ee559a5e5192c
   ExpoFont: a95606f106a6394df8edf6d0d87aab9020af5ad4
   ExpoGlassEffect: 72bcb9dc634262c59897ff7c53c16e2ff03990d0
   ExpoHaptics: 679f09dc37d5981e619bc197732007a3334e80b8
@@ -2983,6 +2983,6 @@ SPEC CHECKSUMS:
   SDWebImageWebPCoder: e38c0a70396191361d60c092933e22c20d5b1380
   Yoga: acd565934addf7423687593ec490bd4491b2a802
 
-PODFILE CHECKSUM: 015fea0be9cb53b9bf569f8bb3249c3782ac6697
+PODFILE CHECKSUM: fe71463e2f19e9b22374a734704bf296485489f5
 
 COCOAPODS: 1.16.2

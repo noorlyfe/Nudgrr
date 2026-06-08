@@ -7,11 +7,6 @@
     "scheme": "nudgrr",
     "userInterfaceStyle": "automatic",
     "icon": "./assets/icon.png",
-    "splash": {
-      "backgroundColor": "#FFF9F0",
-      "resizeMode": "contain",
-      "image": "./assets/splash-android.png"
-    },
     "ios": {
       "icon": {
         "light": "./assets/icon.png",
@@ -19,7 +14,7 @@
       },
       "supportsTablet": false,
       "bundleIdentifier": "com.noorlyfe.nudgrr",
-      "buildNumber": "1",
+      "buildNumber": "3",
       "infoPlist": {
         "CFBundleLocalizations": [
           "en",
@@ -40,7 +35,7 @@
         "backgroundColor": "#FFF9F0"
       },
       "package": "com.noorlyfe.nudgrr",
-      "versionCode": 17
+      "versionCode": 18
     },
     "plugins": [
       [
@@ -54,11 +49,14 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#FFF9F0",
-          "image": "./assets/splash-android.png",
-          "resizeMode": "contain",
+          "ios": {
+            "image": "./assets/icon.png",
+            "backgroundColor": "#FFF9F0",
+            "resizeMode": "contain",
+            "imageWidth": 280
+          },
           "android": {
-            "image": "./assets/splash-android.png",
+            "image": "./assets/icon.png",
             "backgroundColor": "#FFF9F0",
             "resizeMode": "contain",
             "imageWidth": 280
